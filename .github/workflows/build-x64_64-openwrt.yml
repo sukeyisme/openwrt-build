@@ -119,9 +119,9 @@ jobs:
           docker push ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:latest 
       
       - name: Upload bin folder
-          uses: actions/upload-artifact@main
-          if: steps.generate.outputs.GENERATE_STATUS == 'success'
-          with:
+        uses: actions/upload-artifact@main
+        if: steps.generate.outputs.GENERATE_STATUS == 'success'
+        with:
             name: bin-archive
             path: openwrt/bin
 
