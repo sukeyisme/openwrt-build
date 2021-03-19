@@ -1,0 +1,140 @@
+name: Build x86_64 Openwrt
+
+on:
+  push:
+    tags:
+      - "v*"
+  schedule:
+  # 分、时、日、月、周
+    - cron: 0 1 * * 5
+
+env:
+  REPO_URL: https://github.com/coolsnowwolf/lede
+  REPO_BRANCH: master
+  CONFIG_FILE: config/lean/x86/x86_64-lean-target.config
+  DIY_SH: scripts/lean-openwrt.sh
+  TZ: Asia/Shanghai
+  DEVICE: openwrt-x86-64-generic
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@main
+
+      - name: Initialization Environment
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          sudo -E apt-get -qq update
+          sudo -E apt-get -qq install $(cat depends/ubuntu-1804)
+          sudo -E apt-get -qq autoremove --purge
+          sudo -E apt-get -qq clean
+          sudo ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+
+      - name: Clone Source Code
+        run: |
+          df -hT $PWD
+          git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+
+      - name: Update Feeds
+        id: update
+        run: |
+          cd openwrt
+          echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
+          ./scripts/feeds update -a
+
+      - name: Install Feeds
+        run: |
+          cd $OPENWRTROOT
+          ./scripts/feeds install -a
+
+      - name: Load Custom Configuration
+        run: |
+          [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRTROOT/.config
+          cat config/lean/x86/x86-lean-extra.config >> $OPENWRTROOT/.config
+          chmod +x scripts/*.sh
+          cd $OPENWRTROOT
+          ../$DIY_SH
+
+      - name: Download Package
+        id: package
+        run: |
+          cd $OPENWRTROOT
+          make defconfig
+          make download -j8
+          find dl -size -1024c -exec ls -l {} \;
+          find dl -size -1024c -exec rm -f {} \;
+
+      - name: Compile Packages
+        id: compile
+        run: |
+          cd $OPENWRTROOT
+          echo -e "$(nproc) thread compile"
+          make tools/compile -j$(nproc) || make tools/compile -j1 V=s
+          make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
+          make target/compile -j$(nproc) || make target/compile -j1 V=s IGNORE_ERRORS=1
+          make diffconfig
+          make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+          make package/index
+          cd $OPENWRTROOT/bin/packages/*
+          PLATFORM=$(basename `pwd`)
+          echo "PLATFORM=$PLATFORM" >> $GITHUB_ENV
+          cd $OPENWRTROOT/bin/targets/*
+          TARGET=$(basename `pwd`)
+          echo "TARGET=$TARGET" >> $GITHUB_ENV
+          cd *
+          SUBTARGET=$(basename `pwd`)
+          echo "SUBTARGET=$SUBTARGET" >> $GITHUB_ENV
+          echo "::set-output name=COMPILE_STATUS::success"
+
+      - name: Generate Firmware
+        if: steps.compile.outputs.COMPILE_STATUS == 'success'
+        id: generate
+        run: |
+          cd $OPENWRTROOT
+          mkdir -p files/etc/uci-defaults/
+          cp ../scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
+          make package/install -j$(nproc) || make package/install -j1 V=s
+          make target/install -j$(nproc) || make target/install -j1 V=s
+          make checksum
+          echo "::set-output name=GENERATE_STATUS::success"
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v1
+        with:
+          username: ${{secrets.DOCKER_USERNAME}}
+          password: ${{secrets.DOCKER_PASSWORD}}
+
+      - name: Generate docker image and push
+        if: steps.generate.outputs.status == 'success'
+        run: |
+          current_time=`date "+%Y-%m-%d"`
+          docker import openwrt/bin/targets/$TARGET/$SUBTARGET/$DEVICE-rootfs.tar.gz ${{secrets.DOCKER_USERNAME}}/DEVICE-lean-openwrt:$current_time
+          docker push ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:$current_time
+          docker tag ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:$current_time ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:latest
+          docker push ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:latest 
+
+      - name: Upload vmdk
+        uses: actions/upload-artifact@main
+        if: steps.generate.outputs.GENERATE_STATUS == 'success'
+        with:
+          name: bin-archive
+          path: openwrt/bin/targets/$TARGET/$SUBTARGET/$DEVICE-squashfs-combined.vmdk
+
+      - name: Upload img
+        uses: actions/upload-artifact@main
+        if: steps.generate.outputs.GENERATE_STATUS == 'success'
+        with:
+          name: bin-archive
+          path: openwrt/bin/targets/$TARGET/$SUBTARGET/$DEVICE-squashfs-combined.img.gz
+
+      - name: Upload Images Sha256sums
+        uses: actions/upload-artifact@main
+        if: steps.generate.outputs.status == 'success'
+        with:
+          name: sha256sums
+          path: openwrt/bin/targets/$TARGET/$SUBTARGET/sha256sums
