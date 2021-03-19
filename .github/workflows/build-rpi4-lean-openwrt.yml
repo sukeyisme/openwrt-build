@@ -82,13 +82,13 @@ jobs:
       run: |
         cd $OPENWRTROOT/bin/packages/*
         PLATFORM=$(basename `pwd`)
-        echo "::set-env name=PLATFORM::$PLATFORM"
+        echo "PLATFORM=$PLATFORM" >> $GITHUB_ENV
         cd $OPENWRTROOT/bin/targets/*
         TARGET=$(basename `pwd`)
-        echo "::set-env name=TARGET::$TARGET"
+        echo "TARGET=$TARGET" >> $GITHUB_ENV
         cd *
         SUBTARGET=$(basename `pwd`)
-        echo "::set-env name=SUBTARGET::$SUBTARGET"
+        echo "SUBTARGET=$SUBTARGET" >> $GITHUB_ENV
 
     - name: Generate Firmware
       if: steps.compile.outputs.status == 'success'
@@ -98,9 +98,6 @@ jobs:
         make package/install -j$(nproc) || make package/install -j1 V=s
         make target/install -j$(nproc) || make target/install -j1 V=s
         make checksum
-        grep '^CONFIG_TARGET.*DEVICE.*=y' .config | sed -r 's/.*DEVICE_(.*)=y/\1/' > DEVICE_NAME
-        [ -s DEVICE_NAME ] && echo "::set-env name=DEVICE_NAME::_$(cat DEVICE_NAME)"
-        echo "::set-env name=FILE_DATE::_$(date +"%Y%m%d%H%M")"
         echo "::set-output name=status::success"
         
     - name: Compress Img Files
@@ -125,14 +122,14 @@ jobs:
         
     - name: Upload vmdk
       uses: actions/upload-artifact@main
-      if: steps.generate.outputs.GENERATE_STATUS == 'success'
+      if: steps.generate.outputs.status == 'success'
       with:
         name: bin-archive
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-squashfs-combined.vmdk
 
     - name: Upload img
       uses: actions/upload-artifact@main
-      if: steps.generate.outputs.GENERATE_STATUS == 'success'
+      if: steps.generate.outputs.status == 'success'
       with:
         name: bin-archive
         path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-squashfs-combined.img.gz
