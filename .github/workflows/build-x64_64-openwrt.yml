@@ -3,7 +3,7 @@ name: Build x86_64 Openwrt
 on:
   push:
     tags:
-      - "v*"
+      - "x86-*"
   schedule:
   # 分、时、日、月、周
     - cron: 0 1 * * 5

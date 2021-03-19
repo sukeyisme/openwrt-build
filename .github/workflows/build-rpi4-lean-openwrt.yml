@@ -3,7 +3,7 @@ name: Build Raspberry Pi 4 Lean's OpenWrt
 on:
   push:
     tags:
-      - "v*"
+      - "rpi4-*"
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
