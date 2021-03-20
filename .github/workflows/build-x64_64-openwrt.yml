@@ -119,30 +119,30 @@ jobs:
           docker tag ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:$current_time ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:latest
           docker push ${{secrets.DOCKER_USERNAME}}/$DEVICE-lean-openwrt:latest 
       
-      - name: Upload bin folder
+      # - name: Upload bin folder
+      #   uses: actions/upload-artifact@main
+      #   if: steps.generate.outputs.GENERATE_STATUS == 'success'
+      #   with:
+      #       name: bin-archive
+      #       path: openwrt/bin
+
+      - name: Upload vmdk
         uses: actions/upload-artifact@main
         if: steps.generate.outputs.GENERATE_STATUS == 'success'
         with:
-            name: bin-archive
-            path: openwrt/bin
+          name: vmdk-archive
+          path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/${{DEVICE}}-squashfs-combined.vmdk
 
-      # - name: Upload vmdk
-      #   uses: actions/upload-artifact@main
-      #   if: steps.generate.outputs.GENERATE_STATUS == 'success'
-      #   with:
-      #     name: vmdk-archive
-      #     path: openwrt/bin/targets/$TARGET/$SUBTARGET/$DEVICE-squashfs-combined.vmdk
+      - name: Upload img
+        uses: actions/upload-artifact@main
+        if: steps.generate.outputs.GENERATE_STATUS == 'success'
+        with:
+          name: img-archive
+          path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/${{DEVICE}}-squashfs-combined.img.gz
 
-      # - name: Upload img
-      #   uses: actions/upload-artifact@main
-      #   if: steps.generate.outputs.GENERATE_STATUS == 'success'
-      #   with:
-      #     name: img-archive
-      #     path: openwrt/bin/targets/$TARGET/$SUBTARGET/$DEVICE-squashfs-combined.img.gz
-
-      # - name: Upload Images Sha256sums
-      #   uses: actions/upload-artifact@main
-      #   if: steps.generate.outputs.GENERATE_STATUS == 'success'
-      #   with:
-      #     name: sha256sums
-      #     path: openwrt/bin/targets/$TARGET/$SUBTARGET/sha256sums
+      - name: Upload Images Sha256sums
+        uses: actions/upload-artifact@main
+        if: steps.generate.outputs.GENERATE_STATUS == 'success'
+        with:
+          name: sha256sums
+          path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/sha256sums
