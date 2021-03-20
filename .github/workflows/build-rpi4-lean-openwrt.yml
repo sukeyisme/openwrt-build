@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "rpi4-*"
+      - "all-*"
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
