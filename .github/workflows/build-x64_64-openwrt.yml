@@ -131,18 +131,18 @@ jobs:
         if: steps.generate.outputs.GENERATE_STATUS == 'success'
         with:
           name: vmdk-archive
-          path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/${{DEVICE}}-squashfs-combined.vmdk
+          path: openwrt/bin/targets/${{env.TARGET}}/${{env.SUBTARGET}}/${{env.DEVICE}}-squashfs-combined.vmdk
 
       - name: Upload img
         uses: actions/upload-artifact@main
         if: steps.generate.outputs.GENERATE_STATUS == 'success'
         with:
           name: img-archive
-          path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/${{DEVICE}}-squashfs-combined.img.gz
+          path: openwrt/bin/targets/${{env.TARGET}}/${{env.SUBTARGET}}/${{env.DEVICE}}-squashfs-combined.img.gz
 
       - name: Upload Images Sha256sums
         uses: actions/upload-artifact@main
         if: steps.generate.outputs.GENERATE_STATUS == 'success'
         with:
           name: sha256sums
-          path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/sha256sums
+          path: openwrt/bin/targets/${{env.TARGET}}/${{env.SUBTARGET}}/sha256sums
