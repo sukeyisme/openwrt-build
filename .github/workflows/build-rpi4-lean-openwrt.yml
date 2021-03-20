@@ -100,11 +100,6 @@ jobs:
         make checksum
         echo "::set-output name=status::success"
         
-    - name: Compress Img Files
-      run: |
-        cd $OPENWRTROOT/bin/targets/$TARGET/$SUBTARGET
-        gzip *.img
-        
     - name: Login to DockerHub
       uses: docker/login-action@v1
       with:
