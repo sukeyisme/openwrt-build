@@ -128,7 +128,7 @@ jobs:
       if: steps.generate.outputs.status == 'success'
       with:
         name: sha256sums
-        path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/sha256sums
+        path: openwrt/bin/targets/${{env.TARGET}}/${{env.SUBTARGET}}/sha256sums
 
     # - name: Upload bin folder
     #   uses: actions/upload-artifact@main
