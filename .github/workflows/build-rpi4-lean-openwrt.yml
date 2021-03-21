@@ -116,23 +116,23 @@ jobs:
         docker tag ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:$current_time ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:latest
         docker push ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:latest
         
-    # - name: Upload img
-    #   uses: actions/upload-artifact@main
-    #   if: steps.generate.outputs.status == 'success'
-    #   with:
-    #     name: bin-archive
-    #     path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-squashfs-combined.img.gz
-
-    # - name: Upload Images Sha256sums
-    #   uses: actions/upload-artifact@master
-    #   if: steps.generate.outputs.status == 'success'
-    #   with:
-    #     name: sha256sums
-    #     path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/sha256sums
-
-    - name: Upload bin folder
+    - name: Upload img
       uses: actions/upload-artifact@main
       if: steps.generate.outputs.status == 'success'
       with:
-          name: bin-archive
-          path: openwrt/bin
+        name: img-archive
+        path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-ext4-factory.img.gz
+
+    - name: Upload Images Sha256sums
+      uses: actions/upload-artifact@master
+      if: steps.generate.outputs.status == 'success'
+      with:
+        name: sha256sums
+        path: openwrt/bin/targets/${{TARGET}}/${{SUBTARGET}}/sha256sums
+
+    # - name: Upload bin folder
+    #   uses: actions/upload-artifact@main
+    #   if: steps.generate.outputs.status == 'success'
+    #   with:
+    #       name: bin-archive
+    #       path: openwrt/bin
