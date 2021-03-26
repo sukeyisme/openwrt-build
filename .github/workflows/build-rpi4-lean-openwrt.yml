@@ -5,6 +5,9 @@ on:
     tags:
       - "rpi4-*"
       - "all-*"
+  schedule:
+  # 分、时、日、月、周
+    - cron: 0 5 * * 5
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
