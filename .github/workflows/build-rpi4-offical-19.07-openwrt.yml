@@ -1,0 +1,136 @@
+name: Build Raspberry Pi 4 offical-19.07's OpenWrt
+
+on:
+  push:
+    tags:
+      - "rpi4-*"
+      - "all-*"
+  schedule:
+  # 分、时、日、月、周
+    - cron: 0 5 * * 5
+
+env:
+  REPO_URL: https://github.com/openwrt/openwrt
+  REPO_BRANCH: openwrt-19.07
+  CONFIG_FILE: config/offical-19.07/rpi4/openwrt.config
+  DEVICE: openwrt-bcm27xx-bcm2711-rpi-4
+  DIY_SH: scripts/offical-openwrt.sh
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-18.04
+    if: github.event.repository.owner.id == github.event.sender.id
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization Environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(cat depends/ubuntu-1804)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+
+    - name: Clone Source Code
+      run: git clone --depth 1 $REPO_URL -b $REPO_BRANCH openwrt
+
+    - name: Update Feeds
+      run: |
+        cd openwrt
+        echo "OPENWRTROOT=$PWD" >> $GITHUB_ENV
+        echo "::set-output name=OPENWRTROOT::$(echo $PWD)"
+        ./scripts/feeds update -a
+
+    - name: Install Feeds
+      run: |
+        cd $OPENWRTROOT
+        ./scripts/feeds install -a
+
+    - name: Load Custom Configuration
+      run: |
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE $OPENWRTROOT/.config
+        chmod +x $DIY_SH
+        cd $OPENWRTROOT
+        ../$DIY_SH
+
+    - name: Download Package
+      id: package
+      run: |
+        cd $OPENWRTROOT
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile Packages
+      id: compile
+      run: |
+        cd $OPENWRTROOT
+        echo -e "$(nproc) thread compile"
+        make tools/compile -j$(nproc) || make tools/compile -j1 V=s
+        make toolchain/compile -j$(nproc) || make toolchain/compile -j1 V=s
+        make target/compile -j$(nproc) || make target/compile -j1 V=s IGNORE_ERRORS=1
+        make diffconfig
+        make package/compile -j$(nproc) IGNORE_ERRORS=1 || make package/compile -j1 V=s IGNORE_ERRORS=1
+        make package/index
+        echo "::set-output name=status::success"
+
+    - name: Set Environment Variable
+      if: steps.compile.outputs.status == 'success'
+      run: |
+        cd $OPENWRTROOT/bin/packages/*
+        PLATFORM=$(basename `pwd`)
+        echo "PLATFORM=$PLATFORM" >> $GITHUB_ENV
+        cd $OPENWRTROOT/bin/targets/*
+        TARGET=$(basename `pwd`)
+        echo "TARGET=$TARGET" >> $GITHUB_ENV
+        cd *
+        SUBTARGET=$(basename `pwd`)
+        echo "SUBTARGET=$SUBTARGET" >> $GITHUB_ENV
+
+    - name: Generate Firmware
+      if: steps.compile.outputs.status == 'success'
+      id: generate
+      run: |
+        cd $OPENWRTROOT
+        mkdir -p files/etc/uci-defaults/
+        cp ../scripts/init-settings.sh files/etc/uci-defaults/99-init-settings
+        make package/install -j$(nproc) || make package/install -j1 V=s
+        make target/install -j$(nproc) || make target/install -j1 V=s
+        make checksum
+        echo "::set-output name=status::success"
+        
+    - name: Login to DockerHub
+      uses: docker/login-action@v1
+      with:
+        username: ${{secrets.DOCKER_USERNAME}}
+        password: ${{secrets.DOCKER_PASSWORD}}
+
+    - name: Generate docker image
+      if: steps.generate.outputs.status == 'success'
+      run: |
+        current_time=`date "+%Y-%m-%d"`
+        docker import openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-rootfs.tar.gz ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:$current_time
+        docker push ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:$current_time
+        docker tag ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:$current_time ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:latest
+        docker push ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:latest
+        
+    - name: Upload img
+      uses: actions/upload-artifact@main
+      if: steps.generate.outputs.status == 'success'
+      with:
+        name: img-archive
+        path: openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-ext4-factory.img.gz
+
+    - name: Upload Images Sha256sums
+      uses: actions/upload-artifact@master
+      if: steps.generate.outputs.status == 'success'
+      with:
+        name: sha256sums
+        path: openwrt/bin/targets/${{env.TARGET}}/${{env.SUBTARGET}}/sha256sums
