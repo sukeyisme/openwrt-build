@@ -3,6 +3,7 @@ name: Build Raspberry Pi 4 Lean's OpenWrt
 on:
   push:
     tags:
+      - "lean-rpi4-*"
       - "rpi4-*"
       - "all-*"
   schedule:

@@ -3,6 +3,7 @@ name: Build x86_64 Openwrt
 on:
   push:
     tags:
+      - "lean-x86-*"
       - "x86-*"
       - "all-*"
   schedule:
