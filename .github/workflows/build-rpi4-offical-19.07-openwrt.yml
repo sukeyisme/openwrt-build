@@ -3,7 +3,7 @@ name: Build Raspberry Pi 4 offical-19.07's OpenWrt
 on:
   push:
     tags:
-      - "rpi4-*"
+      - "rpi4-offical-*"
       - "all-*"
   schedule:
   # 分、时、日、月、周
