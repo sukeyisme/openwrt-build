@@ -116,10 +116,10 @@ jobs:
       if: steps.generate.outputs.status == 'success'
       run: |
         current_time=`date "+%Y-%m-%d"`
-        docker import openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-rootfs.tar.gz ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:$current_time
-        docker push ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:$current_time
-        docker tag ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:$current_time ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:latest
-        docker push ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-lean-openwrt:latest
+        docker import openwrt/bin/targets/${{ env.TARGET }}/${{ env.SUBTARGET }}/${{ env.DEVICE }}-rootfs.tar.gz ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-offical-19.07-openwrt:$current_time
+        docker push ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-offical-19.07-openwrt:$current_time
+        docker tag ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-offical-19.07-openwrt:$current_time ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-offical-19.07-openwrt:latest
+        docker push ${{secrets.DOCKER_USERNAME}}/${{ env.DEVICE }}-offical-19.07-openwrt:latest
         
     - name: Upload img
       uses: actions/upload-artifact@main
